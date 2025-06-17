@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Hello World!</title>
+    <link rel="stylesheet" href="index.css" />
+  </head>
+  <body>
+    <header>
+      <div>
+        <span class="logo">plectrum</span>
+      </div>
+      <nav>
+        <button id="home-tab">Home</button>
+        <button id="songs-tab">Songs</button>
+        <button id="practice-tab">Practice</button>
+        <button id="makemusic-tab">Make Music</button>
+      </nav>
+    </header>
+    <main id="main-content">
+      <h1>Najpopularniejsze skale muzyczne</h1>
+      <p>Wybierz skalę, aby zobaczyć ją na klawiaturze pianina:</p>
+      <div class="dropdown-container">
+        <select id="scale-select" class="dropdown">
+          <option value="c-major">C-dur (major)</option>
+          <option value="a-minor">A-moll (minor)</option>
+          <option value="a-minor-pentatonic">A-moll pentatonika</option>
+        </select>
+      </div>
+      <div class="piano-scroll-label-container">
+        <span class="piano-scroll-label">←</span>
+        <span class="piano-scroll-label">Przewiń klawiaturę</span>
+        <span class="piano-scroll-label">→</span>
+      </div>
+      <div class="piano-svg-scroll" id="piano-scroll">
+        <div class="piano-svg-container" id="piano-svg-container">
+          <svg id="piano-svg" height="180"></svg>
+        </div>
+      </div>
+    </main>
+    <footer>&copy; 2025 plectrum</footer>
+    <script>
+// Generowanie 88 klawiszy pianina (A0-C8)
+const whiteKeyOrder = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+const blackKeyOrder = ['C#', 'D#', '', 'F#', 'G#', 'A#', ''];
+const whiteKeys = [];
+const blackKeys = [];
+let midi = 21; // A0
+for (let i = 0; i < 88; i++) {
+  // MIDI 21 = A0, MIDI 108 = C8
+  const noteNames = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const noteIndex = (midi - 12) % 12;
+  const octave = Math.floor((midi - 12) / 12);
+  const note = noteNames[noteIndex] + octave;
+  // Białe klawisze
+  if ([0,2,4,5,7,9,11].includes(noteIndex)) {
+    whiteKeys.push({note, midi});
+  } else { // Czarny klawisz
+    blackKeys.push({note, midi, pos: whiteKeys.length - 1 + 0.7});
+  }
+  midi++;
+}
+const scaleNotes = {
+  'c-major': ['C','D','E','F','G','A','B'],
+  'a-minor': ['A','B','C','D','E','F','G'],
+  'a-minor-pentatonic': ['A','C','D','E','G']
+};
+function getNoteName(note) {
+  // Usuwa numer oktawy
+  return note.replace(/\d+/, '');
+}
+function drawPiano(selectedScale) {
+  const svg = document.getElementById('piano-svg');
+  const keyWidth = 60;
+  svg.setAttribute('width', whiteKeys.length * keyWidth);
+  svg.setAttribute('height', 180);
+  svg.innerHTML = '';
+  // Białe klawisze
+  whiteKeys.forEach((key, i) => {
+    const isInScale = scaleNotes[selectedScale].includes(getNoteName(key.note));
+    svg.innerHTML += `<rect x="${i*keyWidth}" y="0" width="${keyWidth}" height="180" rx="8" fill="${isInScale ? '#a3e635' : '#fff'}" stroke="#222" stroke-width="2"/>
+      <text x="${i*keyWidth+keyWidth/2}" y="160" text-anchor="middle" font-size="16" fill="#222">${key.note}</text>`;
+  });
+  // Czarny klawisze
+  blackKeys.forEach((key) => {
+    const isInScale = scaleNotes[selectedScale].includes(getNoteName(key.note));
+    svg.innerHTML += `<rect x="${key.pos*keyWidth+keyWidth*0.32}" y="0" width="${keyWidth*0.72}" height="120" rx="6" fill="${isInScale ? '#bef264' : '#222'}" stroke="#111" stroke-width="2"/>
+      <text x="${key.pos*keyWidth+keyWidth*0.68}" y="90" text-anchor="middle" font-size="12" fill="#fff">${key.note}</text>`;
+  });
+  // Ustaw szerokość kontenera na szerokość SVG
+  document.getElementById('piano-svg-container').style.minWidth = (whiteKeys.length * keyWidth) + 'px';
+  document.getElementById('piano-svg-container').style.width = (whiteKeys.length * keyWidth) + 'px';
+}
+const select = document.getElementById('scale-select');
+select.addEventListener('change', () => drawPiano(select.value));
+drawPiano(select.value);
+
+// Zakładki
+const mainContent = document.getElementById('main-content');
+document.getElementById('home-tab').onclick = () => {
+  location.reload();
+};
+document.getElementById('practice-tab').onclick = () => {
+  mainContent.innerHTML = `
+    <h1>Metronom</h1>
+    <div class="metronome-box">
+      <label for="bpm-input">Tempo (BPM):</label>
+      <input id="bpm-input" type="number" min="1" max="1000" value="120" class="dropdown" style="width:100px; margin:0 12px;" />
+      <button id="metronome-toggle" class="primary">Start</button>
+      <span id="metronome-beat" style="display:inline-block;width:24px;height:24px;margin-left:24px;"></span>
+    </div>
+  `;
+  let metronomeInterval = null;
+  let isRunning = false;
+  let beat = false;
+  let nextTick = null;
+  let ctx = null;
+  const bpmInput = document.getElementById('bpm-input');
+  const toggleBtn = document.getElementById('metronome-toggle');
+  const beatEl = document.getElementById('metronome-beat');
+  function playClick() {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    // Drewniane pykniecie: szybki atak, wysoki ton, szybki spadek, lekki "klik"
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.value = 1800;
+    gain.gain.value = 0.25;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    // Dodajemy szybki "klik" envelope
+    gain.gain.setValueAtTime(0.25, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.05, ctx.currentTime + 0.01);
+    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.04);
+    osc.stop(ctx.currentTime + 0.04);
+    // Dodajemy drugi oscylator dla "drewnianego" efektu
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = 'triangle';
+    osc2.frequency.value = 600;
+    gain2.gain.value = 0.12;
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start();
+    gain2.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain2.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.04);
+    osc2.stop(ctx.currentTime + 0.04);
+  }
+  function updateBeat() {
+    beat = !beat;
+    beatEl.style.background = beat ? '#a3e635' : '#232323';
+    playClick();
+    // Precyzyjne wywołanie kolejnego beatu
+    let bpm = parseInt(bpmInput.value, 10);
+    if (isNaN(bpm) || bpm < 1) bpm = 1;
+    if (bpm > 1000) bpm = 1000;
+    const interval = 60000 / bpm;
+    nextTick = performance.now() + interval;
+    if (isRunning) {
+      requestAnimationFrame(scheduleNextBeat);
+    }
+  }
+  function scheduleNextBeat(now) {
+    if (!isRunning) return;
+    if (now >= nextTick - 2) {
+      updateBeat();
+    } else {
+      requestAnimationFrame(scheduleNextBeat);
+    }
+  }
+  toggleBtn.onclick = () => {
+    if (!isRunning) {
+      let bpm = parseInt(bpmInput.value, 10);
+      if (isNaN(bpm) || bpm < 1) bpm = 1;
+      if (bpm > 1000) bpm = 1000;
+      bpmInput.value = bpm;
+      isRunning = true;
+      nextTick = performance.now();
+      updateBeat();
+      toggleBtn.textContent = 'Stop';
+    } else {
+      isRunning = false;
+      toggleBtn.textContent = 'Start';
+      beatEl.style.background = '#232323';
+      if (ctx) ctx.close();
+      ctx = null;
+    }
+  };
+};
+document.getElementById('makemusic-tab').onclick = () => {
+  mainContent.innerHTML = `
+    <h1>Make Music</h1>
+    <p>Podłącz klawiaturę MIDI i nagrywaj własne piosenki lub układaj je na graficznej klawiaturze!</p>
+    <div class="main-box">
+      <div id="piano-roll-container" class="piano-roll-placeholder">Kliknij na siatkę, aby dodać nuty</div>
+      <div class="main-buttons">
+        <button id="play-song-btn" class="primary">Odtwórz</button>
+        <button id="export-midi-btn">Eksportuj do MIDI</button>
+      </div>
+      <div class="midi-box">
+        <button id="start-midi-btn" class="primary">Połącz z klawiaturą MIDI</button>
+        <div id="midi-status" style="margin:16px 0;color:#a3e635;"></div>
+        <div id="midi-log" style="background:#232323;color:#fff;padding:16px;border-radius:12px;min-height:60px;"></div>
+        <button id="start-record-btn" class="primary" style="margin-top:16px;">Start nagrywania</button>
+        <button id="stop-record-btn" style="margin-top:16px;">Stop nagrywania</button>
+        <div id="recorded-notes" style="margin-top:24px;"></div>
+      </div>
+    </div>`;
+
+  // Piano roll logic
+  const pianoRoll = document.createElement('canvas');
+  function resizePianoRoll() {
+    const box = document.querySelector('.main-box');
+    pianoRoll.width = box ? box.clientWidth : window.innerWidth - 80;
+    pianoRoll.height = 240;
+  }
+  resizePianoRoll();
+  window.addEventListener('resize', () => {
+    resizePianoRoll();
+    drawRoll();
+  });
+  pianoRoll.style.width = '100%';
+  pianoRoll.style.background = '#18181b';
+  pianoRoll.style.borderRadius = '12px';
+  pianoRoll.style.marginBottom = '24px';
+  pianoRoll.style.display = 'block';
+  pianoRoll.style.cursor = 'pointer';
+  const pianoRollContainer = document.getElementById('piano-roll-container');
+  pianoRollContainer.innerHTML = '';
+  pianoRollContainer.appendChild(pianoRoll);
+
+  // Piano roll state
+  const NUM_KEYS = 24; // 2 oktawy
+  let NUM_STEPS = 32; // 32 "pola" czasowe
+  let notes = [];
+
+  function getStepWidth() {
+    return pianoRoll.width / NUM_STEPS;
+  }
+  function getKeyHeight() {
+    return pianoRoll.height / NUM_KEYS;
+  }
+
+  // Rysowanie piano roll
+  let playheadStep = null;
+  function drawRoll() {
+    const ctx = pianoRoll.getContext('2d');
+    ctx.clearRect(0, 0, pianoRoll.width, pianoRoll.height);
+    const STEP_WIDTH = getStepWidth();
+    const KEY_HEIGHT = getKeyHeight();
+    // Siatka
+    ctx.strokeStyle = '#333';
+    for (let i = 0; i <= NUM_KEYS; i++) {
+      ctx.beginPath();
+      ctx.moveTo(0, i * KEY_HEIGHT);
+      ctx.lineTo(pianoRoll.width, i * KEY_HEIGHT);
+      ctx.stroke();
+    }
+    for (let i = 0; i <= NUM_STEPS; i++) {
+      ctx.beginPath();
+      ctx.moveTo(i * STEP_WIDTH, 0);
+      ctx.lineTo(i * STEP_WIDTH, pianoRoll.height);
+      ctx.stroke();
+    }
+    // Nuty
+    for (const n of notes) {
+      ctx.fillStyle = '#a3e635';
+      ctx.fillRect(n.step * STEP_WIDTH, n.key * KEY_HEIGHT, STEP_WIDTH, KEY_HEIGHT);
+      ctx.strokeStyle = '#fff';
+      ctx.strokeRect(n.step * STEP_WIDTH, n.key * KEY_HEIGHT, STEP_WIDTH, KEY_HEIGHT);
+    }
+    // Playhead
+    if (playheadStep !== null) {
+      ctx.save();
+      ctx.strokeStyle = '#f87171';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(playheadStep * STEP_WIDTH + STEP_WIDTH/2, 0);
+      ctx.lineTo(playheadStep * STEP_WIDTH + STEP_WIDTH/2, pianoRoll.height);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+  drawRoll();
+
+  // Dodawanie/usuwanie nut kliknięciem
+  pianoRoll.onclick = (e) => {
+    const rect = pianoRoll.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const STEP_WIDTH = getStepWidth();
+    const KEY_HEIGHT = getKeyHeight();
+    const step = Math.floor(x / STEP_WIDTH);
+    const key = Math.floor(y / KEY_HEIGHT);
+    // Jeśli już jest nuta w tym miejscu, usuń ją
+    const idx = notes.findIndex(n => n.step === step && n.key === key);
+    if (idx >= 0) {
+      notes.splice(idx, 1);
+    } else {
+      notes.push({step, key});
+    }
+    drawRoll();
+  };
+
+  // Odtwarzanie utworu z animacją postępu
+  document.getElementById('play-song-btn').onclick = () => {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const now = ctx.currentTime;
+    const STEP_WIDTH = getStepWidth();
+    const KEY_HEIGHT = getKeyHeight();
+    let maxStep = notes.length ? Math.max(...notes.map(n => n.step)) : NUM_STEPS-1;
+    let duration = (maxStep+1) * 0.2;
+    let startTime = performance.now();
+    playheadStep = 0;
+    drawRoll();
+    // Animacja playheada
+    function animatePlayhead() {
+      let elapsed = (performance.now() - startTime) / 1000;
+      let step = Math.floor(elapsed / 0.2);
+      if (step > maxStep) {
+        playheadStep = null;
+        drawRoll();
+        return;
+      }
+      playheadStep = step;
+      drawRoll();
+      requestAnimationFrame(animatePlayhead);
+    }
+    animatePlayhead();
+    // Dźwięki
+    for (const n of notes) {
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      const midi = 60 + (NUM_KEYS - 1 - n.key);
+      const freq = 440 * Math.pow(2, (midi - 69) / 12);
+      osc.frequency.value = freq;
+      osc.connect(ctx.destination);
+      const start = now + n.step * 0.2;
+      osc.start(start);
+      osc.stop(start + 0.18);
+    }
+  };
+
+  // Usuwam obsługę eksportu MIDI przez window.exportMidi i @tonejs/midi
+  /*
+  // Eksport do MIDI przez preload
+  document.getElementById('export-midi-btn').onclick = () => {
+    const numKeys = NUM_KEYS;
+    const bytes = window.exportMidi.generate(notes, numKeys);
+    const blob = new Blob([bytes], { type: 'audio/midi' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'song.mid';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  */
+
+  // MIDI połączenie i nagrywanie
+  let midiAccess = null;
+  let midiInput = null;
+  let isRecording = false;
+  let recordedNotes = [];
+  let startTime = null;
+  const status = document.getElementById('midi-status');
+  const log = document.getElementById('midi-log');
+  const recBtn = document.getElementById('start-record-btn');
+  const stopBtn = document.getElementById('stop-record-btn');
+  const notesDiv = document.getElementById('recorded-notes');
+  document.getElementById('start-midi-btn').onclick = async () => {
+    if (!navigator.requestMIDIAccess) {
+      status.textContent = 'Twoja przeglądarka nie obsługuje Web MIDI API.';
+      return;
+    }
+    status.textContent = 'Łączenie z klawiaturą MIDI...';
+    try {
+      midiAccess = await navigator.requestMIDIAccess();
+      const inputs = Array.from(midiAccess.inputs.values());
+      if (inputs.length === 0) {
+        status.textContent = 'Nie wykryto żadnej klawiatury MIDI.';
+        return;
+      }
+      midiInput = inputs[0];
+      status.textContent = 'Połączono z: ' + midiInput.name;
+      log.textContent = '';
+      midiInput.onmidimessage = (msg) => {
+        const [cmd, note, velocity] = msg.data;
+        const time = ((performance.now() - (startTime || performance.now()))/1000).toFixed(2);
+        if (cmd === 144 && velocity > 0) {
+          log.textContent = `Naciśnięto: ${note} (velocity: ${velocity})\n` + log.textContent;
+          if (isRecording) recordedNotes.push({type:'on',note,velocity,time});
+        } else if ((cmd === 128) || (cmd === 144 && velocity === 0)) {
+          log.textContent = `Puszczono: ${note}\n` + log.textContent;
+          if (isRecording) recordedNotes.push({type:'off',note,velocity,time});
+        }
+      };
+    } catch (e) {
+      status.textContent = 'Błąd połączenia z MIDI: ' + e;
+    }
+  };
+  recBtn.onclick = () => {
+    if (!midiInput) {
+      status.textContent = 'Najpierw połącz z klawiaturą MIDI!';
+      return;
+    }
+    isRecording = true;
+    recordedNotes = [];
+    startTime = performance.now();
+    status.textContent = 'Nagrywanie...';
+    notesDiv.textContent = '';
+  };
+  stopBtn.onclick = () => {
+    isRecording = false;
+    status.textContent = 'Nagrywanie zatrzymane.';
+    notesDiv.innerHTML = '<b>Zarejestrowane nuty:</b><br>' + recordedNotes.map(n => `${n.type==='on'?'Naciśnięto':'Puszczono'}: ${n.note} (${n.velocity}) w ${n.time}s`).join('<br>');
+  };
+};
+
+    </script>
+  </body>
+</html>
