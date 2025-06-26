@@ -1,0 +1,40 @@
+{
+  "scales": [
+    {
+      "name": "C-dur",
+      "type": "durowa",
+      "notes": ["C", "D", "E", "F", "G", "A", "B"],
+      "description": "Podstawowa skala durowa."
+    },
+    {
+      "name": "A-moll",
+      "type": "molowa",
+      "notes": ["A", "B", "C", "D", "E", "F", "G"],
+      "description": "Podstawowa skala molowa."
+    }
+  ],
+  "chords": [
+    {
+      "name": "C-dur",
+      "fingering": "x32010",
+      "instrument": "guitar"
+    },
+    {
+      "name": "A-moll",
+      "fingering": "x02210",
+      "instrument": "guitar"
+    }
+  ],
+  "lessons": [
+    {
+      "title": "Podstawy gry na gitarze",
+      "level": "początkujący",
+      "content": "Poznaj podstawowe chwyty i techniki."
+    },
+    {
+      "title": "Skale na pianinie",
+      "level": "średniozaawansowany",
+      "content": "Ćwiczenia skal na klawiaturze."
+    }
+  ]
+}

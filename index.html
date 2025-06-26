@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plectrum – Nauka muzyki</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>Plectrum</h1>
+        <nav>
+            <ul>
+                <li><a href="#metronome">Metronom</a></li>
+                <li><a href="#scales">Skale i akordy</a></li>
+                <li><a href="#lessons">Lekcje</a></li>
+                <li><a href="#profile">Profil</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <section id="dashboard">
+            <h2>Panel główny</h2>
+            <p>Witaj! Wybierz funkcję, którą chcesz ćwiczyć lub poznawać.</p>
+        </section>
+        <section id="metronome">
+            <h2>Metronom</h2>
+            <div id="metronome-controls">
+                <label for="bpm">Tempo (BPM):</label>
+                <input type="number" id="bpm" min="30" max="300" value="120">
+                <button id="start-metronome">Start</button>
+                <button id="stop-metronome">Stop</button>
+            </div>
+            <div id="metronome-visual"></div>
+        </section>
+        <section id="scales">
+            <h2>Skale i akordy</h2>
+            <div id="scales-list"></div>
+            <div id="scale-visualization"></div>
+        </section>
+        <section id="lessons">
+            <h2>Lekcje i ćwiczenia</h2>
+            <div id="lessons-list"></div>
+        </section>
+        <section id="profile">
+            <h2>Twój profil</h2>
+            <div id="profile-stats"></div>
+        </section>
+    </main>
+    <footer>
+        <p>&copy; 2025 Plectrum</p>
+    </footer>
+    <script src="main.js"></script>
+</body>
+</html>
