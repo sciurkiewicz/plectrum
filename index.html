@@ -9,21 +9,36 @@
 <body>
     <header>
         <h1>Plectrum</h1>
-        <nav>
-            <ul>
-                <li><a href="#metronome">Metronom</a></li>
-                <li><a href="#scales">Skale i akordy</a></li>
-                <li><a href="#lessons">Lekcje</a></li>
-                <li><a href="#profile">Profil</a></li>
-            </ul>
-        </nav>
     </header>
     <main>
         <section id="dashboard">
             <h2>Panel główny</h2>
+            <p class="dashboard-scroll-hint">Przewiń w bok, aby zobaczyć więcej kart &rarr;</p>
+            <div class="dashboard-cards">
+                <div class="dashboard-card" data-section="tab-generator">
+                    <span class="card-icon">📝</span>
+                    <span class="card-title">Generator Tabulatury</span>
+                </div>
+                <div class="dashboard-card" data-section="chord-list">
+                    <span class="card-icon">📃</span>
+                    <span class="card-title">Lista Akordów i Gitary</span>
+                </div>
+                <div class="dashboard-card" data-section="chord-checker">
+                    <span class="card-icon">🔗</span>
+                    <span class="card-title">Sprawdzacz Akordów</span>
+                </div>
+                <div class="dashboard-card" data-section="metronome">
+                    <span class="card-icon">⏱️</span>
+                    <span class="card-title">Metronom</span>
+                </div>
+                <div class="dashboard-card" data-section="drum-machine">
+                    <span class="card-icon">🥁</span>
+                    <span class="card-title">Automat perkusyjny</span>
+                </div>
+            </div>
             <p>Witaj! Wybierz funkcję, którą chcesz ćwiczyć lub poznawać.</p>
         </section>
-        <section id="metronome">
+        <section id="metronome" style="display:none">
             <h2>Metronom</h2>
             <div id="metronome-controls">
                 <label for="bpm">Tempo (BPM):</label>
@@ -33,23 +48,41 @@
             </div>
             <div id="metronome-visual"></div>
         </section>
-        <section id="scales">
-            <h2>Skale i akordy</h2>
-            <div id="scales-list"></div>
-            <div id="scale-visualization"></div>
+        <section id="tuner" style="display:none">
+            <h2>Stroik</h2>
+            <div id="tuner-controls">(tutaj będzie stroik)</div>
         </section>
-        <section id="lessons">
-            <h2>Lekcje i ćwiczenia</h2>
-            <div id="lessons-list"></div>
+        <section id="chords" style="display:none">
+            <h2>Akordy</h2>
+            <div id="chords-list">(tutaj będą akordy)</div>
         </section>
-        <section id="profile">
+        <section id="scales" style="display:none">
+            <h2>Skale</h2>
+            <div id="scales-list">(tutaj będą skale)</div>
+        </section>
+        <section id="music-creation" style="display:none">
+            <h2>Tworzenie muzyki</h2>
+            <div id="music-creation-content">(tutaj będzie kreator muzyki)</div>
+        </section>
+        <section id="inspiration" style="display:none">
+            <h2>Inspiracja</h2>
+            <div id="inspiration-content">(tutaj będą inspiracje muzyczne)</div>
+        </section>
+        <section id="profile" style="display:none">
             <h2>Twój profil</h2>
-            <div id="profile-stats"></div>
+            <div id="profile-stats">(tutaj będą statystyki użytkownika)</div>
         </section>
     </main>
     <footer>
         <p>&copy; 2025 Plectrum</p>
     </footer>
+    <div id="modal" class="modal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <button class="modal-close" aria-label="Zamknij">&times;</button>
+            <div id="modal-body">Tutaj pojawi się zawartość funkcji</div>
+        </div>
+    </div>
     <script src="main.js"></script>
 </body>
 </html>
