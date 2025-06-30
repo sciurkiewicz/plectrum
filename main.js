@@ -47,6 +47,201 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     `;
 
+    // Szablon listy akordów z zakładkami i SVG
+    const chordListTemplate = `
+        <div style="min-height:320px;display:flex;flex-direction:column;align-items:center;">
+            <h2 style="text-align:center;">Lista akordów</h2>
+            <div style="display:flex;gap:1.2rem;margin-bottom:1.5rem;">
+                <button class="chord-tab-btn" data-tab="guitar" style="font-size:1.1rem;padding:0.5rem 1.5rem;border-radius:8px;background:#4caf50;color:#fff;border:none;">Gitara</button>
+                <button class="chord-tab-btn" data-tab="bass" style="font-size:1.1rem;padding:0.5rem 1.5rem;border-radius:8px;background:#23242b;color:#e0e0e0;border:1px solid #444;">Bas</button>
+                <button class="chord-tab-btn" data-tab="keys" style="font-size:1.1rem;padding:0.5rem 1.5rem;border-radius:8px;background:#23242b;color:#e0e0e0;border:1px solid #444;">Klawisze</button>
+            </div>
+            <div id="chord-list-content"></div>
+        </div>
+    `;
+
+    // Proste SVG dla akordów gitarowych (np. x32010 -> C-dur)
+    function renderGuitarChordSVG(fingering) {
+        // fingering: np. x32010
+        const frets = fingering.split('').map(f => f === 'x' ? null : parseInt(f));
+        const width = 120, height = 90;
+        let svg = `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" style="background:#23242b;border-radius:8px;">
+            <g font-family='monospace' font-size='0.9rem'>`;
+        // progi
+        for (let f = 0; f < 5; f++) {
+            svg += `<line x1="20" y1="${20 + f*15}" x2="100" y2="${20 + f*15}" stroke="#aaa" stroke-width="2" />`;
+        }
+        // struny
+        for (let s = 0; s < 6; s++) {
+            svg += `<line x1="${20 + s*16}" y1="20" x2="${20 + s*16}" y2="80" stroke="#bbb" stroke-width="2" />`;
+        }
+        // palce
+        for (let s = 0; s < 6; s++) {
+            if (frets[s] !== null && frets[s] > 0) {
+                svg += `<circle cx="${20 + s*16}" cy="${20 + (frets[s]-1)*15}" r="6" fill="#4caf50" stroke="#fff" />`;
+            } else if (frets[s] === 0) {
+                svg += `<text x="${20 + s*16}" y="15" fill="#fff" text-anchor="middle">0</text>`;
+            } else if (frets[s] === null) {
+                svg += `<text x="${20 + s*16}" y="15" fill="#d32f2f" text-anchor="middle">x</text>`;
+            }
+        }
+        svg += '</g></svg>';
+        return svg;
+    }
+    // Proste SVG dla basu (4 struny)
+    function renderBassChordSVG(fingering) {
+        // fingering: np. x022 (A-dur na basie)
+        const frets = fingering.split('').map(f => f === 'x' ? null : parseInt(f));
+        const width = 90, height = 70;
+        let svg = `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" style="background:#23242b;border-radius:8px;">
+            <g font-family='monospace' font-size='0.9rem'>`;
+        for (let f = 0; f < 5; f++) {
+            svg += `<line x1="15" y1="${15 + f*12}" x2="70" y2="${15 + f*12}" stroke="#aaa" stroke-width="2" />`;
+        }
+        for (let s = 0; s < 4; s++) {
+            svg += `<line x1="${15 + s*18}" y1="15" x2="${15 + s*18}" y2="63" stroke="#bbb" stroke-width="2" />`;
+        }
+        for (let s = 0; s < 4; s++) {
+            if (frets[s] !== null && frets[s] > 0) {
+                svg += `<circle cx="${15 + s*18}" cy="${15 + (frets[s]-1)*12}" r="5" fill="#4caf50" stroke="#fff" />`;
+            } else if (frets[s] === 0) {
+                svg += `<text x="${15 + s*18}" y="10" fill="#fff" text-anchor="middle">0</text>`;
+            } else if (frets[s] === null) {
+                svg += `<text x="${15 + s*18}" y="10" fill="#d32f2f" text-anchor="middle">x</text>`;
+            }
+        }
+        svg += '</g></svg>';
+        return svg;
+    }
+    // Proste SVG dla klawiszy (pianino, podświetlone klawisze)
+    function renderKeysChordSVG(notes) {
+        // notes: tablica np. ['C','E','G']
+        const keys = ['C','D','E','F','G','A','B'];
+        let svg = `<svg width="120" height="60" viewBox="0 0 120 60" style="background:#23242b;border-radius:8px;">
+            <g font-family='monospace' font-size='0.9rem'>`;
+        for (let i = 0; i < 7; i++) {
+            const isActive = notes.includes(keys[i]);
+            svg += `<rect x="${5 + i*16}" y="5" width="14" height="30" fill="${isActive ? '#4caf50' : '#fff'}" stroke="#888" />`;
+        }
+        for (let i = 0; i < 7; i++) {
+            svg += `<text x="${12 + i*16}" y="56" fill="#aaa" text-anchor="middle">${keys[i]}</text>`;
+        }
+        svg += '</g></svg>';
+        return svg;
+    }
+
+    // Akordy demo (możesz rozwinąć)
+    // Pełna lista popularnych akordów gitarowych
+    const guitarChords = [
+        { name: 'C-dur', fingering: 'x32010' },
+        { name: 'A-moll', fingering: 'x02210' },
+        { name: 'D-dur', fingering: 'xx0232' },
+        { name: 'E-dur', fingering: '022100' },
+        { name: 'G-dur', fingering: '320003' },
+        { name: 'F-dur', fingering: '133211' },
+        { name: 'A-dur', fingering: 'x02220' },
+        { name: 'E-moll', fingering: '022000' },
+        { name: 'D-moll', fingering: 'xx0231' },
+        { name: 'B-dur', fingering: 'x24442' },
+        { name: 'H-moll', fingering: 'x24432' },
+        { name: 'G-moll', fingering: '355333' },
+        { name: 'C-moll', fingering: 'x35543' },
+        { name: 'F-moll', fingering: '133111' },
+        { name: 'A7', fingering: 'x02020' },
+        { name: 'E7', fingering: '020100' },
+        { name: 'D7', fingering: 'xx0212' },
+        { name: 'G7', fingering: '320001' },
+        { name: 'C7', fingering: 'x32310' },
+        { name: 'B7', fingering: 'x21202' },
+        { name: 'H7', fingering: 'x21202' },
+        { name: 'Am7', fingering: 'x02010' },
+        { name: 'Em7', fingering: '020000' },
+        { name: 'Dm7', fingering: 'xx0211' },
+        { name: 'Fmaj7', fingering: 'xx3210' },
+        { name: 'Gmaj7', fingering: '320002' },
+        { name: 'Amaj7', fingering: 'x02120' },
+        { name: 'Emaj7', fingering: '021100' },
+        { name: 'C#m', fingering: 'x46654' },
+        { name: 'D#m', fingering: 'xx1342' },
+        { name: 'Bm', fingering: 'x24432' },
+        { name: 'F#', fingering: '244322' },
+        { name: 'F#m', fingering: '244222' },
+        { name: 'G#m', fingering: '466444' },
+        { name: 'B', fingering: 'x24442' }
+    ];
+    // Popularne akordy basowe (4-strunowy bas, uproszczone)
+    const bassChords = [
+        { name: 'E', fingering: '0220' },
+        { name: 'A', fingering: 'x022' },
+        { name: 'D', fingering: 'x002' },
+        { name: 'G', fingering: '0032' },
+        { name: 'C', fingering: 'x320' },
+        { name: 'F', fingering: 'x332' },
+        { name: 'B', fingering: 'x244' },
+        { name: 'H', fingering: 'x244' },
+        { name: 'A-moll', fingering: 'x010' },
+        { name: 'E-moll', fingering: '0200' },
+        { name: 'D-moll', fingering: 'x001' }
+    ];
+    // Popularne akordy klawiszowe (tylko białe klawisze, uproszczone)
+    const keysChords = [
+        { name: 'C-dur', notes: ['C','E','G'] },
+        { name: 'A-moll', notes: ['A','C','E'] },
+        { name: 'D-dur', notes: ['D','F#','A'] },
+        { name: 'E-dur', notes: ['E','G#','B'] },
+        { name: 'G-dur', notes: ['G','B','D'] },
+        { name: 'F-dur', notes: ['F','A','C'] },
+        { name: 'A-dur', notes: ['A','C#','E'] },
+        { name: 'E-moll', notes: ['E','G','B'] },
+        { name: 'D-moll', notes: ['D','F','A'] },
+        { name: 'B-dur', notes: ['B','D#','F#'] },
+        { name: 'H-moll', notes: ['B','D','F#'] },
+        { name: 'G-moll', notes: ['G','Bb','D'] },
+        { name: 'C-moll', notes: ['C','Eb','G'] },
+        { name: 'F-moll', notes: ['F','Ab','C'] },
+        { name: 'A7', notes: ['A','C#','E','G'] },
+        { name: 'E7', notes: ['E','G#','B','D'] },
+        { name: 'D7', notes: ['D','F#','A','C'] },
+        { name: 'G7', notes: ['G','B','D','F'] },
+        { name: 'C7', notes: ['C','E','G','Bb'] },
+        { name: 'B7', notes: ['B','D#','F#','A'] },
+        { name: 'Am7', notes: ['A','C','E','G'] },
+        { name: 'Em7', notes: ['E','G','B','D'] },
+        { name: 'Dm7', notes: ['D','F','A','C'] },
+        { name: 'Fmaj7', notes: ['F','A','C','E'] },
+        { name: 'Gmaj7', notes: ['G','B','D','F#'] },
+        { name: 'Amaj7', notes: ['A','C#','E','G#'] },
+        { name: 'Emaj7', notes: ['E','G#','B','D#'] }
+    ];
+
+    function renderChordList(tab) {
+        let html = '<div style="display:flex;flex-wrap:wrap;gap:1.5rem;justify-content:center;">';
+        if (tab === 'guitar') {
+            guitarChords.forEach(chord => {
+                html += `<div style='display:flex;flex-direction:column;align-items:center;gap:0.5rem;'>
+                    <span style='font-size:1.1rem;'>${chord.name}</span>
+                    ${renderGuitarChordSVG(chord.fingering)}
+                </div>`;
+            });
+        } else if (tab === 'bass') {
+            bassChords.forEach(chord => {
+                html += `<div style='display:flex;flex-direction:column;align-items:center;gap:0.5rem;'>
+                    <span style='font-size:1.1rem;'>${chord.name}</span>
+                    ${renderBassChordSVG(chord.fingering)}
+                </div>`;
+            });
+        } else if (tab === 'keys') {
+            keysChords.forEach(chord => {
+                html += `<div style='display:flex;flex-direction:column;align-items:center;gap:0.5rem;'>
+                    <span style='font-size:1.1rem;'>${chord.name}</span>
+                    ${renderKeysChordSVG(chord.notes)}
+                </div>`;
+            });
+        }
+        html += '</div>';
+        return html;
+    }
+
     let metronomeInterval = null;
     function playClick() {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -118,7 +313,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 let tabData = [];
                 let tabPos = -1;
                 let tabPage = 0;
-                const TAB_NOTES_PER_PAGE = 8;
+                const TAB_NOTES_PER_PAGE = 16; // było 8, teraz 16 nut na stronę tabulatury
 
                 function positionFretboardBtns() {
                     // Ustaw przyciski pomiędzy progami 12 i 13
@@ -150,12 +345,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     for (let f = 0; f <= frets; f++) {
                         svg += `<line x1="${60 + f * fretSpacing}" y1="40" x2="${60 + f * fretSpacing}" y2="${height - 20}" stroke="#888" stroke-width="${f === 0 ? 5 : 2}" />`;
                         if (f > 0) {
-                            svg += `<text x="${60 + f * fretSpacing - fretSpacing/2}" y="30" fill="#aaa" text-anchor="middle">${f}</text>`;
+                            svg += `<text x="${60 + f * fretSpacing - fretSpacing/2}" y="20" fill="#aaa" text-anchor="middle">${f}</text>`;
                         }
                     }
                     for (let s = 0; s < strings; s++) {
                         svg += `<line x1="60" y1="${40 + s * stringSpacing}" x2="${width - 10}" y2="${40 + s * stringSpacing}" stroke="#bbb" stroke-width="2" />`;
-                        svg += `<text x="30" y="${45 + s * stringSpacing}" fill="#aaa" text-anchor="end">${tuning[s]}</text>`;
+                        svg += `<text x="15" y="${45 + s * stringSpacing}" fill="#aaa" text-anchor="end">${tuning[s]}</text>`;
                     }
                     for (let s = 0; s < strings; s++) {
                         for (let f = 0; f < frets; f++) {
@@ -252,6 +447,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 renderTab();
                 setTimeout(positionFretboardBtns, 0);
                 // --- koniec logiki SVG fretboardu ---
+            } else if (section === 'chord-list') {
+                modalBody.innerHTML = chordListTemplate;
+                modal.classList.add('open');
+                let currentTab = 'guitar';
+                const content = document.getElementById('chord-list-content');
+                content.innerHTML = renderChordList(currentTab);
+                document.querySelectorAll('.chord-tab-btn').forEach(btn => {
+                    btn.onclick = function() {
+                        document.querySelectorAll('.chord-tab-btn').forEach(b => b.style.background = '#23242b');
+                        this.style.background = '#4caf50';
+                        this.style.color = '#fff';
+                        currentTab = this.getAttribute('data-tab');
+                        content.innerHTML = renderChordList(currentTab);
+                    };
+                });
             } else {
                 const title = card.querySelector('.card-title').textContent;
                 modalBody.textContent = `Tutaj pojawi się funkcja: ${title}`;
