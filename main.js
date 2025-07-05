@@ -242,15 +242,27 @@ document.addEventListener('DOMContentLoaded', function() {
         return html;
     }
 
-    let metronomeInterval = null;
+    // Globalny AudioContext do całej aplikacji (jeden na wszystko)
+    var globalAudioCtx = null;
+    function getAudioCtx() {
+        if (!globalAudioCtx || globalAudioCtx.state === 'closed') {
+            globalAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        return globalAudioCtx;
+    }
+
+    // Zmienione funkcje perkusyjne/metronom na użycie globalnego AudioContext
     function playClick() {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const ctx = getAudioCtx();
         const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
         osc.type = 'sine';
         osc.frequency.value = 1000;
-        osc.connect(ctx.destination);
+        osc.connect(gain); gain.connect(ctx.destination);
+        gain.gain.value = 1;
         osc.start();
         osc.stop(ctx.currentTime + 0.05);
+        osc.onended = () => { osc.disconnect(); gain.disconnect(); };
     }
     function startMetronomeModal() {
         stopMetronomeModal();
@@ -277,6 +289,93 @@ document.addEventListener('DOMContentLoaded', function() {
             metronomeVisual.style.color = '#aaa';
         }
     }
+
+    // Graficzny sprawdzacz akordów – koło współgrających akordów (SVG)
+    // Rozbudowane koło akordów: więcej akordów, lepsze kolory, tooltipy, podświetlenie harmonii
+    var chordRelations = [
+      { name: 'C-dur', color: '#4caf50', harmonies: ['A-moll','D-moll','E-moll','F-dur','G-dur','E7','G7'] },
+      { name: 'A-moll', color: '#388e3c', harmonies: ['C-dur','D-moll','E-moll','F-dur','G-dur','E7','G7'] },
+      { name: 'G-dur', color: '#1976d2', harmonies: ['C-dur','D-dur','E-moll','A-moll','B7','G7','E7'] },
+      { name: 'D-dur', color: '#0288d1', harmonies: ['G-dur','A-dur','H-moll','E-moll','A7','D7'] },
+      { name: 'E-moll', color: '#009688', harmonies: ['C-dur','G-dur','A-moll','D-dur','E7','G7'] },
+      { name: 'F-dur', color: '#fbc02d', harmonies: ['C-dur','Bb','D-moll','G-moll','A7','Fmaj7'] },
+      { name: 'D-moll', color: '#f57c00', harmonies: ['A-moll','C-dur','F-dur','G-dur','D7','A7'] },
+      { name: 'A-dur', color: '#e64a19', harmonies: ['D-dur','E-dur','F#m','H7','A7','E7'] },
+      { name: 'E-dur', color: '#ab47bc', harmonies: ['A-dur','B-dur','C#m','F#m','E7','A7'] },
+      { name: 'B-dur', color: '#8d6e63', harmonies: ['Eb','F-dur','G-moll','D-moll','Bb7'] },
+      { name: 'H-moll', color: '#6d4c41', harmonies: ['E-dur','F#m','G-dur','D-dur','B7'] },
+      { name: 'G-moll', color: '#455a64', harmonies: ['C-moll','D-dur','Eb','F-dur','G7'] },
+      { name: 'C-moll', color: '#607d8b', harmonies: ['G-moll','Ab','Bb','Eb','Cm7'] },
+      { name: 'F-moll', color: '#bdbdbd', harmonies: ['Ab','Bb','C-moll','Db','Fm7'] },
+      { name: 'A7', color: '#ff7043', harmonies: ['D-dur','E7','F#m','A-dur'] },
+      { name: 'E7', color: '#ba68c8', harmonies: ['A-dur','H7','C#m','E-dur','A7'] },
+      { name: 'D7', color: '#4dd0e1', harmonies: ['G-dur','A7','H7','D-dur'] },
+      { name: 'G7', color: '#64b5f6', harmonies: ['C-dur','D7','E-moll','G-dur'] },
+      { name: 'C7', color: '#ffd54f', harmonies: ['F-dur','G7','Bb','C-dur'] },
+      { name: 'B7', color: '#a1887f', harmonies: ['E-dur','A-dur','F#m','H-moll'] },
+      { name: 'Am7', color: '#81c784', harmonies: ['D7','E7','C-dur','A-moll'] },
+      { name: 'Em7', color: '#4fc3f7', harmonies: ['A7','D7','G-dur','E-moll'] },
+      { name: 'Dm7', color: '#ffb74d', harmonies: ['G7','C7','F-dur','D-moll'] },
+      { name: 'Fmaj7', color: '#fff176', harmonies: ['G7','C-dur','D-moll','F-dur'] },
+      { name: 'Gmaj7', color: '#90caf9', harmonies: ['C-dur','D7','E-moll','G-dur'] },
+      { name: 'Amaj7', color: '#ce93d8', harmonies: ['D-dur','E7','F#m','A-dur'] },
+      { name: 'Emaj7', color: '#b39ddb', harmonies: ['A-dur','B7','C#m','E-dur'] }
+    ];
+
+    function renderChordRelationsSVG(selected) {
+      // Duże, responsywne koło akordów z większymi odstępami i mniejszymi kulkami
+      const size = Math.min(window.innerWidth, window.innerHeight, 900) - 40;
+      const cx = size / 2, cy = size / 2;
+      // Zwiększ odległość: promień większy, kulki mniejsze
+      const r = size / 2 - 30; // większy promień (mniej paddingu)
+      const circleR = Math.max(36, Math.floor(size/28)); // mniejsze kulki
+      const fontSize = Math.max(16, Math.floor(size/38));
+      const chords = chordRelations;
+      const selectedIdx = chords.findIndex(c => c.name === selected);
+      let svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="background:#23242b;border-radius:50%;max-width:100vw;max-height:80vh;">
+        <g font-family='monospace' font-size='${fontSize}px'>`;
+      // Linie do harmonii
+      if (selectedIdx !== -1) {
+        const angleSel = (Math.PI * 2 * selectedIdx) / chords.length - Math.PI/2;
+        const xSel = cx + r * Math.cos(angleSel);
+        const ySel = cy + r * Math.sin(angleSel);
+        chords[selectedIdx].harmonies.forEach(h => {
+          const idx = chords.findIndex(c => c.name === h);
+          if (idx !== -1) {
+            const angleH = (Math.PI * 2 * idx) / chords.length - Math.PI/2;
+            const xH = cx + r * Math.cos(angleH);
+            const yH = cy + r * Math.sin(angleH);
+            svg += `<line x1="${xSel}" y1="${ySel}" x2="${xH}" y2="${yH}" stroke="#4caf50" stroke-width="${Math.max(4, Math.floor(size/160))}" opacity="0.85" />`;
+          }
+        });
+      }
+      // Kółka i podpisy
+      for (let i = 0; i < chords.length; i++) {
+        const angle = (Math.PI * 2 * i) / chords.length - Math.PI/2;
+        const x = cx + r * Math.cos(angle);
+        const y = cy + r * Math.sin(angle);
+        let fill = '#23242b', stroke = '#888', text = '#aaa', filter = '';
+        if (chords[i].name === selected) {
+          fill = chords[i].color; stroke = '#fff'; text = '#fff'; filter = 'drop-shadow(0 0 12px #fff8)';
+        } else if (selectedIdx !== -1 && chords[selectedIdx].harmonies.includes(chords[i].name)) {
+          fill = chords[i].color; stroke = '#4caf50'; text = '#fff'; filter = 'drop-shadow(0 0 10px #4caf50aa)';
+        }
+        svg += `<g><circle cx="${x}" cy="${y}" r="${circleR}" fill="${fill}" stroke="${stroke}" stroke-width="3" style="cursor:pointer;filter:${filter}" data-chord="${chords[i].name}" />`;
+        svg += `<title>${chords[i].name} - kliknij!</title>`;
+        svg += `<text x="${x}" y="${y+fontSize/2}" fill="${text}" text-anchor="middle" font-size="${fontSize}px" style="pointer-events:none;">${chords[i].name}</text></g>`;
+      }
+      svg += '</g></svg>';
+      return svg;
+    }
+
+    // Modal graficznego sprawdzacza akordów
+    var chordRelationsTemplate = `
+      <div style="min-height:420px;display:flex;flex-direction:column;align-items:center;gap:2.2rem;">
+        <h2 style="text-align:center;margin-bottom:0.2em;">Graficzny sprawdzacz akordów</h2>
+        <div id="chord-relations-svg-wrap" style="width:100%;max-width:420px;display:flex;align-items:center;justify-content:center;"></div>
+        <div style="margin-top:1.2rem;font-size:1.1rem;color:#aaa;text-align:center;">Kliknij akord na kole, aby zobaczyć z czym współgra!</div>
+      </div>
+    `;
 
     cards.forEach(card => {
         card.addEventListener('click', function() {
@@ -349,7 +448,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     }
                     for (let s = 0; s < strings; s++) {
-                        svg += `<line x1="60" y1="${40 + s * stringSpacing}" x2="${width - 10}" y2="${40 + s * stringSpacing}" stroke="#bbb" stroke-width="2" />`;
+                        svg += `<line x1="60" y1="${40 + s * stringSpacing}" x2="${width - 10}" y1="${40 + s * stringSpacing}" stroke="#bbb" stroke-width="2" />`;
                         svg += `<text x="15" y="${45 + s * stringSpacing}" fill="#aaa" text-anchor="end">${tuning[s]}</text>`;
                     }
                     for (let s = 0; s < strings; s++) {
@@ -462,6 +561,140 @@ document.addEventListener('DOMContentLoaded', function() {
                         content.innerHTML = renderChordList(currentTab);
                     };
                 });
+            } else if (section === 'chord-checker') {
+                modalBody.innerHTML = chordRelationsTemplate;
+                modal.classList.add('open');
+                const svgWrap = document.getElementById('chord-relations-svg-wrap');
+                let selected = chordRelations[0].name;
+                function updateSVG() {
+                  svgWrap.innerHTML = renderChordRelationsSVG(selected);
+                  // Dodaj obsługę kliknięć na kółkach
+                  const svg = svgWrap.querySelector('svg');
+                  svg.querySelectorAll('circle').forEach(circle => {
+                    circle.onclick = function() {
+                      selected = circle.getAttribute('data-chord');
+                      updateSVG();
+                    };
+                  });
+                }
+                updateSVG();
+            } else if (section === 'drum-machine') {
+                modalBody.innerHTML = `
+        <div style="min-height:340px;display:flex;flex-direction:column;align-items:center;gap:1.2rem;">
+            <h2 style="text-align:center;">Automat perkusyjny</h2>
+            <div style="margin-bottom:1.2rem;">
+                <label for="drum-bpm" style="font-size:1.1rem;">Tempo (BPM):</label>
+                <input type="number" id="drum-bpm" min="40" max="240" value="120" style="font-size:1.1rem;padding:0.3rem 1.2rem;border-radius:8px;background:#23242b;color:#e0e0e0;border:1px solid #444;width:80px;">
+            </div>
+            <div id="drum-grid" style="display:grid;grid-template-columns:repeat(16,28px);gap:6px;margin-bottom:1.2rem;"></div>
+            <div style="display:flex;gap:1.2rem;">
+                <button id="drum-start" style="font-size:1.1rem;padding:0.6rem 2.2rem;border-radius:8px;">Start</button>
+                <button id="drum-stop" style="font-size:1.1rem;padding:0.6rem 2.2rem;border-radius:8px;">Stop</button>
+                <button id="drum-clear" style="font-size:1.1rem;padding:0.6rem 1.2rem;border-radius:8px;background:#d32f2f;color:#fff;">Wyczyść</button>
+            </div>
+        </div>
+    `;
+                modal.classList.add('open');
+                // --- logika automatu perkusyjnego ---
+                const SOUNDS = [
+                    { name: 'Kick', url: null },
+                    { name: 'Snare', url: null },
+                    { name: 'Hi-Hat', url: null },
+                    { name: 'Clap', url: null }
+                ];
+                const steps = 16;
+                const rows = SOUNDS.length;
+                let grid = Array.from({length: rows}, () => Array(steps).fill(false));
+                let currentStep = 0;
+                let interval = null;
+                const drumGrid = document.getElementById('drum-grid');
+                // Render grid
+                function renderGrid() {
+                    drumGrid.innerHTML = '';
+                    for (let r = 0; r < rows; r++) {
+                        for (let s = 0; s < steps; s++) {
+                            const btn = document.createElement('button');
+                            btn.style.width = '26px';
+                            btn.style.height = '26px';
+                            btn.style.borderRadius = '6px';
+                            btn.style.border = '1px solid #444';
+                            btn.style.background = grid[r][s] ? '#4caf50' : '#23242b';
+                            btn.style.outline = 'none';
+                            btn.style.cursor = 'pointer';
+                            btn.title = SOUNDS[r].name + ' ' + (s+1);
+                            btn.onclick = () => {
+                                grid[r][s] = !grid[r][s];
+                                renderGrid();
+                            };
+                            if (s === currentStep) btn.style.boxShadow = '0 0 0 2px #fff';
+                            drumGrid.appendChild(btn);
+                        }
+                    }
+                }
+                // Prosty synth perkusyjny (Web Audio API)
+                function playNoise(duration = 0.05, gainValue = 0.3) {
+                    const ctx = getAudioCtx();
+                    const buffer = ctx.createBuffer(1, ctx.sampleRate * duration, ctx.sampleRate);
+                    const data = buffer.getChannelData(0);
+                    for (let i = 0; i < data.length; i++) {
+                        data[i] = Math.random() * 2 - 1;
+                    }
+                    const noise = ctx.createBufferSource();
+                    noise.buffer = buffer;
+                    const gain = ctx.createGain();
+                    gain.gain.value = gainValue;
+                    noise.connect(gain).connect(ctx.destination);
+                    noise.start();
+                    noise.stop(ctx.currentTime + duration);
+                    noise.onended = () => { noise.disconnect(); gain.disconnect(); };
+                }
+                function playSound(row) {
+                    const ctx = getAudioCtx();
+                    if (row === 0) { // Kick
+                        const o = ctx.createOscillator();
+                        const g = ctx.createGain();
+                        o.connect(g); g.connect(ctx.destination);
+                        o.type = 'sine'; o.frequency.setValueAtTime(120, ctx.currentTime);
+                        o.frequency.linearRampToValueAtTime(40, ctx.currentTime + 0.13);
+                        g.gain.setValueAtTime(1, ctx.currentTime);
+                        g.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.14);
+                        o.start(); o.stop(ctx.currentTime + 0.15);
+                        o.onended = () => { o.disconnect(); g.disconnect(); };
+                    } else if (row === 1) { // Snare
+                        playNoise(0.09, 0.5);
+                    } else if (row === 2) { // Hi-Hat
+                        playNoise(0.04, 0.2);
+                    } else if (row === 3) { // Clap
+                        playNoise(0.06, 0.35);
+                    }
+                }
+                function step() {
+                    for (let r = 0; r < rows; r++) {
+                        if (grid[r][currentStep]) playSound(r);
+                    }
+                    currentStep = (currentStep + 1) % steps;
+                    renderGrid();
+                }
+                function start() {
+                    if (interval) clearInterval(interval);
+                    const bpm = parseInt(document.getElementById('drum-bpm').value, 10);
+                    const ms = 60000 / bpm / 4; // 16th notes
+                    interval = setInterval(step, ms);
+                }
+                function stop() {
+                    if (interval) clearInterval(interval);
+                    interval = null;
+                }
+                function clearGrid() {
+                    grid = Array.from({length: rows}, () => Array(steps).fill(false));
+                    renderGrid();
+                }
+                document.getElementById('drum-start').onclick = start;
+                document.getElementById('drum-stop').onclick = stop;
+                document.getElementById('drum-clear').onclick = clearGrid;
+                document.getElementById('drum-bpm').onchange = function() { if (interval) { stop(); start(); } };
+                renderGrid();
+                // --- koniec logiki automatu perkusyjnego ---
             } else {
                 const title = card.querySelector('.card-title').textContent;
                 modalBody.textContent = `Tutaj pojawi się funkcja: ${title}`;
