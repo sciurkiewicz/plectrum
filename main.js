@@ -377,8 +377,51 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
     `;
 
+    // Rozszerzony modal automatu perkusyjnego: bardzo szeroki, responsywny
+    const drumMachineTemplate = `
+    <div style="min-height:420px;display:flex;flex-direction:column;align-items:center;gap:2.2rem;width:100vw;max-width:1600px;">
+        <h2 style="text-align:center;">Automat perkusyjny</h2>
+        <div style="margin-bottom:1.2rem;display:flex;gap:2.5rem;align-items:center;flex-wrap:wrap;justify-content:center;">
+            <div>
+                <label for="drum-bpm" style="font-size:1.1rem;">Tempo (BPM):</label>
+                <input type="number" id="drum-bpm" min="40" max="240" value="120" style="font-size:1.1rem;padding:0.3rem 1.2rem;border-radius:8px;background:#23242b;color:#e0e0e0;border:1px solid #444;width:80px;">
+            </div>
+            <div>
+                <label for="drum-steps" style="font-size:1.1rem;">Długość patternu:</label>
+                <input type="number" id="drum-steps" min="4" max="64" value="16" style="font-size:1.1rem;padding:0.3rem 1.2rem;border-radius:8px;background:#23242b;color:#e0e0e0;border:1px solid #444;width:80px;">
+            </div>
+        </div>
+        <div id="drum-grid" style="overflow-x:auto;width:100vw;max-width:1500px;margin-bottom:1.2rem;"></div>
+        <div style="display:flex;gap:1.2rem;justify-content:center;">
+            <button id="drum-start" style="font-size:1.1rem;padding:0.6rem 2.2rem;border-radius:8px;">Start</button>
+            <button id="drum-stop" style="font-size:1.1rem;padding:0.6rem 2.2rem;border-radius:8px;">Stop</button>
+            <button id="drum-clear" style="font-size:1.1rem;padding:0.6rem 1.2rem;border-radius:8px;background:#d32f2f;color:#fff;">Wyczyść</button>
+        </div>
+        <div style="font-size:1.05rem;color:#aaa;text-align:center;margin-top:1.2rem;max-width:1200px;">
+            Kliknij w pola, aby aktywować dźwięki. Możesz zmieniać długość patternu i tempo. Automat generuje rockowe barwy perkusji w przeglądarce (Web Audio API).
+        </div>
+    </div>
+    `;
+
+    // Zmienna globalna na interwał metronomu
+    var metronomeInterval = null;
+
+    // Rockowe barwy perkusji (syntetyczne, ale stylizowane)
+    var ROCK_SOUNDS = [
+        { name: 'Kick', type: 'kick' },
+        { name: 'Snare', type: 'snare' },
+        { name: 'Hi-Hat', type: 'hihat' },
+        { name: 'Clap', type: 'clap' },
+        { name: 'Tom', type: 'tom' },
+        { name: 'Cowbell', type: 'cowbell' },
+        { name: 'Crash', type: 'crash' },
+        { name: 'Ride', type: 'ride' }
+    ];
+
     cards.forEach(card => {
         card.addEventListener('click', function() {
+            // ZAWSZE czyść modalBody przed zmianą zawartości
+            modalBody.innerHTML = '';
             const section = card.getAttribute('data-section');
             if (section === 'metronome') {
                 modalBody.innerHTML = metronomeTemplate;
@@ -582,9 +625,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 modalBody.innerHTML = `
         <div style="min-height:340px;display:flex;flex-direction:column;align-items:center;gap:1.2rem;">
             <h2 style="text-align:center;">Automat perkusyjny</h2>
-            <div style="margin-bottom:1.2rem;">
-                <label for="drum-bpm" style="font-size:1.1rem;">Tempo (BPM):</label>
-                <input type="number" id="drum-bpm" min="40" max="240" value="120" style="font-size:1.1rem;padding:0.3rem 1.2rem;border-radius:8px;background:#23242b;color:#e0e0e0;border:1px solid #444;width:80px;">
+            <div style="margin-bottom:1.2rem;display:flex;gap:1.5rem;align-items:center;">
+                <div>
+                    <label for="drum-bpm" style="font-size:1.1rem;">Tempo (BPM):</label>
+                    <input type="number" id="drum-bpm" min="40" max="240" value="120" style="font-size:1.1rem;padding:0.3rem 1.2rem;border-radius:8px;background:#23242b;color:#e0e0e0;border:1px solid #444;width:80px;">
+                </div>
+                <div>
+                    <label for="drum-steps" style="font-size:1.1rem;">Długość patternu:</label>
+                    <input type="number" id="drum-steps" min="4" max="64" value="16" style="font-size:1.1rem;padding:0.3rem 1.2rem;border-radius:8px;background:#23242b;color:#e0e0e0;border:1px solid #444;width:80px;">
+                </div>
             </div>
             <div id="drum-grid" style="display:grid;grid-template-columns:repeat(16,28px);gap:6px;margin-bottom:1.2rem;"></div>
             <div style="display:flex;gap:1.2rem;">
@@ -592,26 +641,44 @@ document.addEventListener('DOMContentLoaded', function() {
                 <button id="drum-stop" style="font-size:1.1rem;padding:0.6rem 2.2rem;border-radius:8px;">Stop</button>
                 <button id="drum-clear" style="font-size:1.1rem;padding:0.6rem 1.2rem;border-radius:8px;background:#d32f2f;color:#fff;">Wyczyść</button>
             </div>
+            <div style="font-size:1.05rem;color:#aaa;text-align:center;margin-top:1.2rem;max-width:900px;">
+                Kliknij w pola, aby aktywować dźwięki. Możesz zmieniać długość patternu i tempo. Automat generuje rockowe barwy perkusji w przeglądarce (Web Audio API).
+            </div>
         </div>
     `;
                 modal.classList.add('open');
-                // --- logika automatu perkusyjnego ---
-                const SOUNDS = [
-                    { name: 'Kick', url: null },
-                    { name: 'Snare', url: null },
-                    { name: 'Hi-Hat', url: null },
-                    { name: 'Clap', url: null }
-                ];
-                const steps = 16;
-                const rows = SOUNDS.length;
+                let steps = 16;
+                let SOUNDS = ROCK_SOUNDS.slice(0, 6); // domyślnie 6 instrumentów
+                let rows = SOUNDS.length;
                 let grid = Array.from({length: rows}, () => Array(steps).fill(false));
                 let currentStep = 0;
                 let interval = null;
                 const drumGrid = document.getElementById('drum-grid');
+                const stepsInput = document.getElementById('drum-steps');
                 // Render grid
                 function renderGrid() {
                     drumGrid.innerHTML = '';
+                    // Kontener na całą siatkę z podpisami
+                    const gridWrap = document.createElement('div');
+                    gridWrap.style.display = 'grid';
+                    gridWrap.style.gridTemplateColumns = `90px repeat(${steps}, 28px)`;
+                    gridWrap.style.gap = '6px';
+                    // Każdy rząd: podpis instrumentu
                     for (let r = 0; r < rows; r++) {
+                        // Podpis instrumentu
+                        const label = document.createElement('div');
+                        label.textContent = SOUNDS[r].name;
+                        label.style.display = 'flex';
+                        label.style.alignItems = 'center';
+                        label.style.justifyContent = 'flex-end';
+                        label.style.height = '26px';
+                        label.style.width = '90px';
+                        label.style.fontSize = '1.05rem';
+                        label.style.color = '#e0e0e0';
+                        label.style.fontFamily = 'monospace';
+                        label.style.userSelect = 'none';
+                        gridWrap.appendChild(label);
+                        // Przyciski kroków
                         for (let s = 0; s < steps; s++) {
                             const btn = document.createElement('button');
                             btn.style.width = '26px';
@@ -627,12 +694,69 @@ document.addEventListener('DOMContentLoaded', function() {
                                 renderGrid();
                             };
                             if (s === currentStep) btn.style.boxShadow = '0 0 0 2px #fff';
-                            drumGrid.appendChild(btn);
+                            gridWrap.appendChild(btn);
                         }
                     }
+                    drumGrid.appendChild(gridWrap);
                 }
-                // Prosty synth perkusyjny (Web Audio API)
-                function playNoise(duration = 0.05, gainValue = 0.3) {
+                // Rockowe barwy perkusji (syntetyczne)
+                function playRockSound(type) {
+                    const ctx = getAudioCtx();
+                    if (type === 'kick') {
+                        const o = ctx.createOscillator();
+                        const g = ctx.createGain();
+                        o.connect(g); g.connect(ctx.destination);
+                        o.type = 'sine';
+                        o.frequency.setValueAtTime(120, ctx.currentTime);
+                        o.frequency.linearRampToValueAtTime(40, ctx.currentTime + 0.13);
+                        g.gain.setValueAtTime(1, ctx.currentTime);
+                        g.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.14);
+                        o.start(); o.stop(ctx.currentTime + 0.15);
+                        o.onended = () => { o.disconnect(); g.disconnect(); };
+                    } else if (type === 'snare') {
+                        const o = ctx.createOscillator();
+                        const g = ctx.createGain();
+                        o.connect(g); g.connect(ctx.destination);
+                        o.type = 'triangle';
+                        o.frequency.setValueAtTime(180, ctx.currentTime);
+                        g.gain.setValueAtTime(0.5, ctx.currentTime);
+                        g.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.09);
+                        o.start(); o.stop(ctx.currentTime + 0.1);
+                        o.onended = () => { o.disconnect(); g.disconnect(); };
+                        // Dodaj szum do snare
+                        playNoise(0.07, 0.25, {type: 'highpass', freq: 1200});
+                    } else if (type === 'hihat') {
+                        playNoise(0.03, 0.18, {type: 'highpass', freq: 8000});
+                    } else if (type === 'clap') {
+                        playNoise(0.06, 0.32, {type: 'bandpass', freq: 1800});
+                    } else if (type === 'tom') {
+                        const o = ctx.createOscillator();
+                        const g = ctx.createGain();
+                        o.connect(g); g.connect(ctx.destination);
+                        o.type = 'sine';
+                        o.frequency.setValueAtTime(180, ctx.currentTime);
+                        o.frequency.linearRampToValueAtTime(80, ctx.currentTime + 0.18);
+                        g.gain.setValueAtTime(0.8, ctx.currentTime);
+                        g.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.19);
+                        o.start(); o.stop(ctx.currentTime + 0.2);
+                        o.onended = () => { o.disconnect(); g.disconnect(); };
+                    } else if (type === 'cowbell') {
+                        const o = ctx.createOscillator();
+                        const g = ctx.createGain();
+                        o.connect(g); g.connect(ctx.destination);
+                        o.type = 'square';
+                        o.frequency.setValueAtTime(900, ctx.currentTime);
+                        g.gain.setValueAtTime(0.5, ctx.currentTime);
+                        g.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.08);
+                        o.start(); o.stop(ctx.currentTime + 0.09);
+                        o.onended = () => { o.disconnect(); g.disconnect(); };
+                    } else if (type === 'crash') {
+                        playNoise(0.25, 0.22, {type: 'highpass', freq: 6000});
+                    } else if (type === 'ride') {
+                        playNoise(0.18, 0.18, {type: 'highpass', freq: 5000});
+                    }
+                }
+                function playNoise(duration = 0.05, gainValue = 0.3, band = null) {
                     const ctx = getAudioCtx();
                     const buffer = ctx.createBuffer(1, ctx.sampleRate * duration, ctx.sampleRate);
                     const data = buffer.getChannelData(0);
@@ -641,32 +765,23 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     const noise = ctx.createBufferSource();
                     noise.buffer = buffer;
+                    let node = noise;
+                    if (band) {
+                        const filter = ctx.createBiquadFilter();
+                        filter.type = band.type;
+                        filter.frequency.value = band.freq;
+                        node.connect(filter);
+                        node = filter;
+                    }
                     const gain = ctx.createGain();
                     gain.gain.value = gainValue;
-                    noise.connect(gain).connect(ctx.destination);
+                    node.connect(gain).connect(ctx.destination);
                     noise.start();
                     noise.stop(ctx.currentTime + duration);
-                    noise.onended = () => { noise.disconnect(); gain.disconnect(); };
+                    noise.onended = () => { noise.disconnect(); gain.disconnect(); if (band) node.disconnect(); };
                 }
                 function playSound(row) {
-                    const ctx = getAudioCtx();
-                    if (row === 0) { // Kick
-                        const o = ctx.createOscillator();
-                        const g = ctx.createGain();
-                        o.connect(g); g.connect(ctx.destination);
-                        o.type = 'sine'; o.frequency.setValueAtTime(120, ctx.currentTime);
-                        o.frequency.linearRampToValueAtTime(40, ctx.currentTime + 0.13);
-                        g.gain.setValueAtTime(1, ctx.currentTime);
-                        g.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.14);
-                        o.start(); o.stop(ctx.currentTime + 0.15);
-                        o.onended = () => { o.disconnect(); g.disconnect(); };
-                    } else if (row === 1) { // Snare
-                        playNoise(0.09, 0.5);
-                    } else if (row === 2) { // Hi-Hat
-                        playNoise(0.04, 0.2);
-                    } else if (row === 3) { // Clap
-                        playNoise(0.06, 0.35);
-                    }
+                    playRockSound(SOUNDS[row].type);
                 }
                 function step() {
                     for (let r = 0; r < rows; r++) {
@@ -693,22 +808,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('drum-stop').onclick = stop;
                 document.getElementById('drum-clear').onclick = clearGrid;
                 document.getElementById('drum-bpm').onchange = function() { if (interval) { stop(); start(); } };
+                stepsInput.onchange = function() {
+                    steps = Math.max(4, Math.min(64, parseInt(stepsInput.value, 10) || 16));
+                    grid = Array.from({length: rows}, () => Array(steps).fill(false));
+                    renderGrid();
+                };
                 renderGrid();
-                // --- koniec logiki automatu perkusyjnego ---
-            } else {
-                const title = card.querySelector('.card-title').textContent;
-                modalBody.textContent = `Tutaj pojawi się funkcja: ${title}`;
-                modal.classList.add('open');
             }
         });
     });
-    function closeModal() {
+
+    closeBtn.addEventListener('click', function() {
         modal.classList.remove('open');
-        stopMetronomeModal(); // zatrzymaj metronom przy zamknięciu
-    }
-    closeBtn.addEventListener('click', closeModal);
-    backdrop.addEventListener('click', closeModal);
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') closeModal();
+        modalBody.innerHTML = '';
+        stopMetronomeModal();
+    });
+    backdrop.addEventListener('click', function() {
+        modal.classList.remove('open');
+        modalBody.innerHTML = '';
+        stopMetronomeModal();
     });
 });
