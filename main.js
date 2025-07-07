@@ -491,7 +491,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     }
                     for (let s = 0; s < strings; s++) {
-                        svg += `<line x1="60" y1="${40 + s * stringSpacing}" x2="${width - 10}" y1="${40 + s * stringSpacing}" stroke="#bbb" stroke-width="2" />`;
+                        svg += `<line x1="60" y1="${40 + s * stringSpacing}" x2="${width - 10}" y2="${40 + s * stringSpacing}" stroke="#bbb" stroke-width="2" />`;
                         svg += `<text x="15" y="${45 + s * stringSpacing}" fill="#aaa" text-anchor="end">${tuning[s]}</text>`;
                     }
                     for (let s = 0; s < strings; s++) {
