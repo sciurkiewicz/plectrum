@@ -379,7 +379,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Rozszerzony modal automatu perkusyjnego: bardzo szeroki, responsywny
     const drumMachineTemplate = `
-    <div style="min-height:420px;display:flex;flex-direction:column;align-items:center;gap:2.2rem;width:100vw;max-width:1600px;">
+    <div style="min-height:420px;display:flex;flex-direction:column;align-items:center;gap:2.2rem;width:100vw;max-width:800px;">
         <h2 style="text-align:center;">Automat perkusyjny</h2>
         <div style="margin-bottom:1.2rem;display:flex;gap:2.5rem;align-items:center;flex-wrap:wrap;justify-content:center;">
             <div>
@@ -391,7 +391,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <input type="number" id="drum-steps" min="4" max="64" value="16" style="font-size:1.1rem;padding:0.3rem 1.2rem;border-radius:8px;background:#23242b;color:#e0e0e0;border:1px solid #444;width:80px;">
             </div>
         </div>
-        <div id="drum-grid" style="overflow-x:auto;width:100vw;max-width:1500px;margin-bottom:1.2rem;"></div>
+        <div id="drum-grid" style="overflow-x:auto;width:100vw;max-width:700px;margin-bottom:1.2rem;"></div>
         <div style="display:flex;gap:1.2rem;justify-content:center;">
             <button id="drum-start" style="font-size:1.1rem;padding:0.6rem 2.2rem;border-radius:8px;">Start</button>
             <button id="drum-stop" style="font-size:1.1rem;padding:0.6rem 2.2rem;border-radius:8px;">Stop</button>

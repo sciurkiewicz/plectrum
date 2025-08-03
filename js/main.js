@@ -14,6 +14,7 @@ import {
 } from './chords.js';
 import { tabGeneratorTemplate, renderFretboardSVG, renderTab, renderTabPagination } from './tabGenerator.js';
 import { drumMachineTemplate, ROCK_SOUNDS, playRockSound } from './drums.js';
+import ModularSynth from './modularSynth.js';
 
 document.addEventListener('DOMContentLoaded', function() {
     const modal = new Modal();
@@ -292,6 +293,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 };
 
                 renderGrid();
+            }
+            else if (section === 'modular-synth') {
+                // Otwórz modal z syntezatorem modularnym
+                const modalHtml = `
+                    <h2>Automat perkusyjny</h2>
+                    <div id="custom-drum-machine-modal"></div>
+                `;
+                modal.open(modalHtml);
+                setTimeout(() => {
+                    import('./sampleDrumMachine.js').then(({ default: SampleDrumMachine }) => {
+                        new SampleDrumMachine(document.getElementById('custom-drum-machine-modal'));
+                    });
+                }, 0);
             }
         });
     });
